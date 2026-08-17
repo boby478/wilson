@@ -18,16 +18,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/wilson.keystore
+
       - name: Grant execute permission for gradlew
         run: |
           gradle wrapper --gradle-version 8.7
           chmod +x gradlew
 
-      - name: Build APK
+      - name: Build signed APK
+        env:
+          KEYSTORE_PATH: wilson.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: wilson-apk
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: app/build/outputs/apk/release/app-release.apk
