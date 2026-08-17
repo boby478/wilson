@@ -70,6 +70,21 @@ public class WilsonAccessibilityService extends AccessibilityService {
         instance.doTypeText(text);
     }
 
+    public static void pressBack() {
+        if (instance == null) return;
+        instance.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+    }
+
+    public static void scrollDown() {
+        if (instance == null) return;
+        instance.doScroll(true);
+    }
+
+    public static void scrollUp() {
+        if (instance == null) return;
+        instance.doScroll(false);
+    }
+
     private void doLaunchApp(String appName) {
         if (appName == null) {
             showToast("Wilson: no app name given");
@@ -177,6 +192,32 @@ public class WilsonAccessibilityService extends AccessibilityService {
         showToast("Wilson: typed '" + text + "' -> " + result);
     }
 
+    private void doScroll(boolean forward) {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            showToast("Wilson: no active screen to scroll");
+            return;
+        }
+        AccessibilityNodeInfo scrollable = findScrollable(root);
+        if (scrollable == null) {
+            showToast("Wilson: no scrollable element found");
+            return;
+        }
+        int action = forward ? AccessibilityNodeInfo.ACTION_SCROLL_FORWARD : AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD;
+        boolean result = scrollable.performAction(action);
+        showToast("Wilson: scrolled " + (forward ? "down" : "up") + " -> " + result);
+    }
+
+    private AccessibilityNodeInfo findScrollable(AccessibilityNodeInfo node) {
+        if (node == null) return null;
+        if (node.isScrollable()) return node;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo result = findScrollable(node.getChild(i));
+            if (result != null) return result;
+        }
+        return null;
+    }
+
     private AccessibilityNodeInfo findFirstEditable(AccessibilityNodeInfo node) {
         if (node == null) return null;
         if (node.isEditable()) return node;
@@ -188,6 +229,28 @@ public class WilsonAccessibilityService extends AccessibilityService {
     }
 
     private AccessibilityNodeInfo findNodeByText(AccessibilityNodeInfo node, String target) {
+        AccessibilityNodeInfo exact = findNodeByTextExact(node, target);
+        if (exact != null) return exact;
+        return findNodeByTextPartial(node, target);
+    }
+
+    private AccessibilityNodeInfo findNodeByTextExact(AccessibilityNodeInfo node, String target) {
+        if (node == null) return null;
+
+        CharSequence text = node.getText();
+        CharSequence desc = node.getContentDescription();
+
+        if (text != null && text.toString().equalsIgnoreCase(target)) return node;
+        if (desc != null && desc.toString().equalsIgnoreCase(target)) return node;
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo result = findNodeByTextExact(node.getChild(i), target);
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findNodeByTextPartial(AccessibilityNodeInfo node, String target) {
         if (node == null) return null;
 
         CharSequence text = node.getText();
@@ -197,7 +260,7 @@ public class WilsonAccessibilityService extends AccessibilityService {
         if (desc != null && desc.toString().toLowerCase().contains(target)) return node;
 
         for (int i = 0; i < node.getChildCount(); i++) {
-            AccessibilityNodeInfo result = findNodeByText(node.getChild(i), target);
+            AccessibilityNodeInfo result = findNodeByTextPartial(node.getChild(i), target);
             if (result != null) return result;
         }
         return null;

@@ -34,6 +34,15 @@ public class CommandReceiver extends BroadcastReceiver {
             case "type_text":
                 WilsonAccessibilityService.typeText(target);
                 break;
+            case "press_back":
+                WilsonAccessibilityService.pressBack();
+                break;
+            case "scroll_down":
+                WilsonAccessibilityService.scrollDown();
+                break;
+            case "scroll_up":
+                WilsonAccessibilityService.scrollUp();
+                break;
             default:
                 Log.d(TAG, "Unknown command: " + command);
         }
