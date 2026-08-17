@@ -149,20 +149,47 @@ public class WilsonAccessibilityService extends AccessibilityService {
             return;
         }
 
-        AccessibilityNodeInfo target = findNodeByText(root, text.trim().toLowerCase());
-        if (target == null) {
-            showToast("Wilson: could not find '" + text + "' to click");
-            return;
+        String target = text.trim().toLowerCase();
+
+        AccessibilityNodeInfo clickable = findClickableNodeByText(root, target, true);
+        if (clickable == null) {
+            clickable = findClickableNodeByText(root, target, false);
         }
 
-        AccessibilityNodeInfo clickable = findClickableAncestor(target);
         if (clickable == null) {
-            showToast("Wilson: found '" + text + "' but nothing clickable nearby");
+            showToast("Wilson: could not find a clickable match for '" + text + "'");
             return;
         }
 
         boolean result = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK);
         showToast("Wilson: clicked '" + text + "' -> " + result);
+    }
+
+    private AccessibilityNodeInfo findClickableNodeByText(AccessibilityNodeInfo node, String target, boolean exact) {
+        if (node == null) return null;
+
+        CharSequence text = node.getText();
+        CharSequence desc = node.getContentDescription();
+
+        boolean matches;
+        if (exact) {
+            matches = (text != null && text.toString().equalsIgnoreCase(target))
+                    || (desc != null && desc.toString().equalsIgnoreCase(target));
+        } else {
+            matches = (text != null && text.toString().toLowerCase().contains(target))
+                    || (desc != null && desc.toString().toLowerCase().contains(target));
+        }
+
+        if (matches) {
+            AccessibilityNodeInfo clickableAncestor = findClickableAncestor(node);
+            if (clickableAncestor != null) return clickableAncestor;
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo result = findClickableNodeByText(node.getChild(i), target, exact);
+            if (result != null) return result;
+        }
+        return null;
     }
 
     private void doTypeText(String text) {
