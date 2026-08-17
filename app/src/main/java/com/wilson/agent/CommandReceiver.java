@@ -22,14 +22,20 @@ public class CommandReceiver extends BroadcastReceiver {
             return;
         }
 
-        if (command.equals("open_app")) {
-            if (WilsonAccessibilityService.isRunning()) {
+        if (!WilsonAccessibilityService.isRunning()) {
+            Log.d(TAG, "Accessibility service not connected.");
+            return;
+        }
+
+        switch (command) {
+            case "open_app":
                 WilsonAccessibilityService.launchApp(target);
-            } else {
-                Log.d(TAG, "Accessibility service not connected.");
-            }
-        } else {
-            Log.d(TAG, "Unknown command: " + command);
+                break;
+            case "read_screen":
+                WilsonAccessibilityService.readScreen();
+                break;
+            default:
+                Log.d(TAG, "Unknown command: " + command);
         }
     }
 }

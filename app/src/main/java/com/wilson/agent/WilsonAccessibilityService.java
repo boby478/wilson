@@ -4,11 +4,12 @@ import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
-import android.util.Log;
-import android.view.accessibility.AccessibilityEvent;
-import android.widget.Toast;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.Toast;
 
 import java.util.List;
 
@@ -56,6 +57,14 @@ public class WilsonAccessibilityService extends AccessibilityService {
         instance.doLaunchApp(appName);
     }
 
+    public static void readScreen() {
+        if (instance == null) {
+            Log.d(TAG, "Accessibility service not running, cannot read screen.");
+            return;
+        }
+        instance.doReadScreen();
+    }
+
     private void doLaunchApp(String appName) {
         if (appName == null) {
             showToast("Wilson: no app name given");
@@ -101,5 +110,48 @@ public class WilsonAccessibilityService extends AccessibilityService {
         startActivity(launchIntent);
         Log.d(TAG, "Launched: " + foundPackage);
         showToast("Wilson: launched " + foundLabel);
+    }
+
+    private void doReadScreen() {
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            Log.d(TAG, "SCREEN_READ: root node is null");
+            showToast("Wilson: could not read screen (no root node)");
+            return;
+        }
+
+        StringBuilder summary = new StringBuilder();
+        int count = walkNode(root, summary, 0);
+
+        Log.d(TAG, "SCREEN_READ: found " + count + " elements");
+        Log.d(TAG, "SCREEN_READ_DUMP_START");
+        Log.d(TAG, summary.toString());
+        Log.d(TAG, "SCREEN_READ_DUMP_END");
+
+        showToast("Wilson: read screen, found " + count + " elements (check logcat)");
+    }
+
+    private int walkNode(AccessibilityNodeInfo node, StringBuilder out, int count) {
+        if (node == null) return count;
+
+        CharSequence text = node.getText();
+        CharSequence desc = node.getContentDescription();
+        String className = node.getClassName() != null ? node.getClassName().toString() : "?";
+
+        if ((text != null && text.length() > 0) || (desc != null && desc.length() > 0) || node.isClickable()) {
+            count++;
+            out.append("[").append(count).append("] ")
+               .append(className)
+               .append(node.isClickable() ? " (clickable)" : "")
+               .append(" text='").append(text).append("'")
+               .append(" desc='").append(desc).append("'")
+               .append("\n");
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            count = walkNode(node.getChild(i), out, count);
+        }
+
+        return count;
     }
 }
