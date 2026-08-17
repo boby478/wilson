@@ -10,18 +10,12 @@ public class CommandReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        Log.d(TAG, "Broadcast received!");
-
         String command = intent.getStringExtra("command");
         String target = intent.getStringExtra("target");
 
         Log.d(TAG, "Command: " + command + " | Target: " + target);
 
-        if (command == null) {
-            Log.d(TAG, "No command extra found.");
-            return;
-        }
-
+        if (command == null) return;
         if (!WilsonAccessibilityService.isRunning()) {
             Log.d(TAG, "Accessibility service not connected.");
             return;
@@ -33,6 +27,12 @@ public class CommandReceiver extends BroadcastReceiver {
                 break;
             case "read_screen":
                 WilsonAccessibilityService.readScreen();
+                break;
+            case "click_text":
+                WilsonAccessibilityService.clickByText(target);
+                break;
+            case "type_text":
+                WilsonAccessibilityService.typeText(target);
                 break;
             default:
                 Log.d(TAG, "Unknown command: " + command);

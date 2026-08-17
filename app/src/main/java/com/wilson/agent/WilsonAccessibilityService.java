@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
@@ -25,9 +26,7 @@ public class WilsonAccessibilityService extends AccessibilityService {
     public void onAccessibilityEvent(AccessibilityEvent event) {}
 
     @Override
-    public void onInterrupt() {
-        Log.d(TAG, "Accessibility service interrupted.");
-    }
+    public void onInterrupt() {}
 
     @Override
     protected void onServiceConnected() {
@@ -61,12 +60,21 @@ public class WilsonAccessibilityService extends AccessibilityService {
         instance.doReadScreen();
     }
 
+    public static void clickByText(String text) {
+        if (instance == null) return;
+        instance.doClickByText(text);
+    }
+
+    public static void typeText(String text) {
+        if (instance == null) return;
+        instance.doTypeText(text);
+    }
+
     private void doLaunchApp(String appName) {
         if (appName == null) {
             showToast("Wilson: no app name given");
             return;
         }
-
         PackageManager pm = getPackageManager();
         List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
         String target = appName.trim().toLowerCase();
@@ -115,6 +123,95 @@ public class WilsonAccessibilityService extends AccessibilityService {
         showToast("Wilson: screen read saved to file");
     }
 
+    private void doClickByText(String text) {
+        if (text == null) {
+            showToast("Wilson: no click target given");
+            return;
+        }
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            showToast("Wilson: no active screen to click on");
+            return;
+        }
+
+        AccessibilityNodeInfo target = findNodeByText(root, text.trim().toLowerCase());
+        if (target == null) {
+            showToast("Wilson: could not find '" + text + "' to click");
+            return;
+        }
+
+        AccessibilityNodeInfo clickable = findClickableAncestor(target);
+        if (clickable == null) {
+            showToast("Wilson: found '" + text + "' but nothing clickable nearby");
+            return;
+        }
+
+        boolean result = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        showToast("Wilson: clicked '" + text + "' -> " + result);
+    }
+
+    private void doTypeText(String text) {
+        if (text == null) {
+            showToast("Wilson: no text given to type");
+            return;
+        }
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            showToast("Wilson: no active screen to type into");
+            return;
+        }
+
+        AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+        if (focused == null) {
+            focused = findFirstEditable(root);
+        }
+
+        if (focused == null) {
+            showToast("Wilson: no text field found to type into");
+            return;
+        }
+
+        Bundle arguments = new Bundle();
+        arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+        boolean result = focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments);
+        showToast("Wilson: typed '" + text + "' -> " + result);
+    }
+
+    private AccessibilityNodeInfo findFirstEditable(AccessibilityNodeInfo node) {
+        if (node == null) return null;
+        if (node.isEditable()) return node;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo result = findFirstEditable(node.getChild(i));
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findNodeByText(AccessibilityNodeInfo node, String target) {
+        if (node == null) return null;
+
+        CharSequence text = node.getText();
+        CharSequence desc = node.getContentDescription();
+
+        if (text != null && text.toString().toLowerCase().contains(target)) return node;
+        if (desc != null && desc.toString().toLowerCase().contains(target)) return node;
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo result = findNodeByText(node.getChild(i), target);
+            if (result != null) return result;
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findClickableAncestor(AccessibilityNodeInfo node) {
+        AccessibilityNodeInfo current = node;
+        while (current != null) {
+            if (current.isClickable()) return current;
+            current = current.getParent();
+        }
+        return null;
+    }
+
     private void writeToFile(String content) {
         try {
             File dir = new File(Environment.getExternalStorageDirectory(), "Download");
@@ -122,7 +219,6 @@ public class WilsonAccessibilityService extends AccessibilityService {
             FileWriter writer = new FileWriter(outFile);
             writer.write(content);
             writer.close();
-            Log.d(TAG, "Wrote screen dump to " + outFile.getAbsolutePath());
         } catch (IOException e) {
             Log.d(TAG, "Failed to write screen dump: " + e.getMessage());
         }
@@ -148,7 +244,6 @@ public class WilsonAccessibilityService extends AccessibilityService {
         for (int i = 0; i < node.getChildCount(); i++) {
             count = walkNode(node.getChild(i), out, count);
         }
-
         return count;
     }
 }
