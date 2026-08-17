@@ -4,6 +4,7 @@ import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
@@ -11,6 +12,9 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
 
 public class WilsonAccessibilityService extends AccessibilityService {
@@ -18,9 +22,7 @@ public class WilsonAccessibilityService extends AccessibilityService {
     private static WilsonAccessibilityService instance;
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Intentionally left minimal for now
-    }
+    public void onAccessibilityEvent(AccessibilityEvent event) {}
 
     @Override
     public void onInterrupt() {
@@ -50,18 +52,12 @@ public class WilsonAccessibilityService extends AccessibilityService {
     }
 
     public static void launchApp(String appName) {
-        if (instance == null) {
-            Log.d(TAG, "Accessibility service not running, cannot launch.");
-            return;
-        }
+        if (instance == null) return;
         instance.doLaunchApp(appName);
     }
 
     public static void readScreen() {
-        if (instance == null) {
-            Log.d(TAG, "Accessibility service not running, cannot read screen.");
-            return;
-        }
+        if (instance == null) return;
         instance.doReadScreen();
     }
 
@@ -73,20 +69,14 @@ public class WilsonAccessibilityService extends AccessibilityService {
 
         PackageManager pm = getPackageManager();
         List<ApplicationInfo> apps = pm.getInstalledApplications(PackageManager.GET_META_DATA);
-
         String target = appName.trim().toLowerCase();
 
-        String exactPackage = null;
-        String exactLabel = null;
-        String partialPackage = null;
-        String partialLabel = null;
+        String exactPackage = null, exactLabel = null, partialPackage = null, partialLabel = null;
 
         for (ApplicationInfo app : apps) {
             Intent testIntent = pm.getLaunchIntentForPackage(app.packageName);
             if (testIntent == null) continue;
-
             String label = pm.getApplicationLabel(app).toString().toLowerCase();
-
             if (label.equals(target) && exactPackage == null) {
                 exactPackage = app.packageName;
                 exactLabel = label;
@@ -100,7 +90,6 @@ public class WilsonAccessibilityService extends AccessibilityService {
         String foundLabel = exactPackage != null ? exactLabel : partialLabel;
 
         if (foundPackage == null) {
-            Log.d(TAG, "No launchable app found for: " + appName);
             showToast("Wilson: no launchable app found matching '" + appName + "'");
             return;
         }
@@ -108,27 +97,35 @@ public class WilsonAccessibilityService extends AccessibilityService {
         Intent launchIntent = pm.getLaunchIntentForPackage(foundPackage);
         launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         startActivity(launchIntent);
-        Log.d(TAG, "Launched: " + foundPackage);
         showToast("Wilson: launched " + foundLabel);
     }
 
     private void doReadScreen() {
         AccessibilityNodeInfo root = getRootInActiveWindow();
+        StringBuilder summary = new StringBuilder();
+
         if (root == null) {
-            Log.d(TAG, "SCREEN_READ: root node is null");
-            showToast("Wilson: could not read screen (no root node)");
-            return;
+            summary.append("ERROR: root node is null\n");
+        } else {
+            int count = walkNode(root, summary, 0);
+            summary.insert(0, "Found " + count + " elements\n");
         }
 
-        StringBuilder summary = new StringBuilder();
-        int count = walkNode(root, summary, 0);
+        writeToFile(summary.toString());
+        showToast("Wilson: screen read saved to file");
+    }
 
-        Log.d(TAG, "SCREEN_READ: found " + count + " elements");
-        Log.d(TAG, "SCREEN_READ_DUMP_START");
-        Log.d(TAG, summary.toString());
-        Log.d(TAG, "SCREEN_READ_DUMP_END");
-
-        showToast("Wilson: read screen, found " + count + " elements (check logcat)");
+    private void writeToFile(String content) {
+        try {
+            File dir = new File(Environment.getExternalStorageDirectory(), "Download");
+            File outFile = new File(dir, "wilson_screen.txt");
+            FileWriter writer = new FileWriter(outFile);
+            writer.write(content);
+            writer.close();
+            Log.d(TAG, "Wrote screen dump to " + outFile.getAbsolutePath());
+        } catch (IOException e) {
+            Log.d(TAG, "Failed to write screen dump: " + e.getMessage());
+        }
     }
 
     private int walkNode(AccessibilityNodeInfo node, StringBuilder out, int count) {
