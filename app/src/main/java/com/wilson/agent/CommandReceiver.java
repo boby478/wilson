@@ -31,6 +31,10 @@ public class CommandReceiver extends BroadcastReceiver {
             case "click_text":
                 WilsonAccessibilityService.clickByText(target);
                 break;
+            case "click_index":
+                int idx = intent.getIntExtra("index", 0);
+                WilsonAccessibilityService.clickByTextIndex(target, idx);
+                break;
             case "type_text":
                 WilsonAccessibilityService.typeText(target);
                 break;

@@ -85,6 +85,11 @@ public class WilsonAccessibilityService extends AccessibilityService {
         instance.doScroll(false);
     }
 
+    public static void clickByTextIndex(String text, int index) {
+        if (instance == null) return;
+        instance.doClickByTextIndex(text, index);
+    }
+
     private void doLaunchApp(String appName) {
         if (appName == null) {
             showToast("Wilson: no app name given");
@@ -163,6 +168,56 @@ public class WilsonAccessibilityService extends AccessibilityService {
 
         boolean result = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK);
         showToast("Wilson: clicked '" + text + "' -> " + result);
+    }
+
+    private void doClickByTextIndex(String text, int index) {
+        if (text == null) {
+            showToast("Wilson: no click target given");
+            return;
+        }
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) {
+            showToast("Wilson: no active screen to click on");
+            return;
+        }
+
+        String target = text.trim().toLowerCase();
+        java.util.List<AccessibilityNodeInfo> matches = new java.util.ArrayList<>();
+        collectClickableMatches(root, target, matches);
+
+        if (matches.isEmpty()) {
+            showToast("Wilson: no clickable matches found for '" + text + "'");
+            return;
+        }
+
+        if (index < 0 || index >= matches.size()) {
+            showToast("Wilson: index " + index + " out of range (" + matches.size() + " matches)");
+            return;
+        }
+
+        boolean result = matches.get(index).performAction(AccessibilityNodeInfo.ACTION_CLICK);
+        showToast("Wilson: clicked match #" + index + " of " + matches.size() + " -> " + result);
+    }
+
+    private void collectClickableMatches(AccessibilityNodeInfo node, String target, java.util.List<AccessibilityNodeInfo> out) {
+        if (node == null) return;
+
+        CharSequence text = node.getText();
+        CharSequence desc = node.getContentDescription();
+
+        boolean matches = (text != null && text.toString().toLowerCase().contains(target))
+                || (desc != null && desc.toString().toLowerCase().contains(target));
+
+        if (matches) {
+            AccessibilityNodeInfo clickableAncestor = findClickableAncestor(node);
+            if (clickableAncestor != null && !out.contains(clickableAncestor)) {
+                out.add(clickableAncestor);
+            }
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            collectClickableMatches(node.getChild(i), target, out);
+        }
     }
 
     private AccessibilityNodeInfo findClickableNodeByText(AccessibilityNodeInfo node, String target, boolean exact) {
