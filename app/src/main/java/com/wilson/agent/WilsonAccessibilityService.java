@@ -166,8 +166,17 @@ public class WilsonAccessibilityService extends AccessibilityService {
             return;
         }
 
+        android.graphics.Rect bounds = new android.graphics.Rect();
+        clickable.getBoundsInScreen(bounds);
+
         boolean result = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK);
         showToast("Wilson: clicked '" + text + "' -> " + result);
+
+        writeToFile("CLICK DEBUG: target='" + text + "' actionClickReturned=" + result
+            + " nodeClass=" + clickable.getClassName()
+            + " nodeBounds=" + bounds.toString()
+            + " nodeClickable=" + clickable.isClickable()
+            + " nodeEnabled=" + clickable.isEnabled());
     }
 
     private void doClickByTextIndex(String text, int index) {
