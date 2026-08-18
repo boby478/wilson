@@ -385,14 +385,22 @@ public class WilsonAccessibilityService extends AccessibilityService {
         CharSequence desc = node.getContentDescription();
         String className = node.getClassName() != null ? node.getClassName().toString() : "?";
 
-        if ((text != null && text.length() > 0) || (desc != null && desc.length() > 0) || node.isClickable()) {
+        boolean isToggle = className.contains("Switch") || className.contains("CheckBox")
+                || className.contains("ToggleButton") || node.isCheckable();
+
+        if ((text != null && text.length() > 0) || (desc != null && desc.length() > 0) || node.isClickable() || isToggle) {
             count++;
             out.append("[").append(count).append("] ")
                .append(className)
                .append(node.isClickable() ? " (clickable)" : "")
                .append(" text='").append(text).append("'")
-               .append(" desc='").append(desc).append("'")
-               .append("\n");
+               .append(" desc='").append(desc).append("'");
+
+            if (isToggle) {
+                out.append(" CHECKED=").append(node.isChecked());
+            }
+
+            out.append("\n");
         }
 
         for (int i = 0; i < node.getChildCount(); i++) {
