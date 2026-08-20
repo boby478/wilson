@@ -123,9 +123,19 @@ public class WilsonAccessibilityService extends AccessibilityService {
         }
 
         Intent launchIntent = pm.getLaunchIntentForPackage(foundPackage);
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(launchIntent);
-        showToast("Wilson: launched " + foundLabel);
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
+                | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        try {
+            startActivity(launchIntent);
+            showToast("Wilson: launched " + foundLabel);
+        } catch (Exception e) {
+            String errorMsg = "LAUNCH_ERROR: " + e.getClass().getSimpleName() + ": " + e.getMessage();
+            showToast("Wilson: " + errorMsg);
+            writeToFile(errorMsg);
+        }
     }
 
     private void doReadScreen() {
