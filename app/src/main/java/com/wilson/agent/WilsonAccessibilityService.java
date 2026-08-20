@@ -135,6 +135,8 @@ public class WilsonAccessibilityService extends AccessibilityService {
         if (root == null) {
             summary.append("ERROR: root node is null\n");
         } else {
+            CharSequence pkg = root.getPackageName();
+            summary.append("FOREGROUND_PACKAGE=").append(pkg).append("\n");
             int count = walkNode(root, summary, 0);
             summary.insert(0, "Found " + count + " elements\n");
         }
